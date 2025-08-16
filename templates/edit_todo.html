@@ -1,5 +1,6 @@
-{% include 'layout.html' %}
-<div class="container">
+{% extends 'layout.html' %}
+
+{% block content %}<div class="container">
   <div class="card">
     <div class="card-header">Edit your Todo</div>
     <div class="card-body">
@@ -35,3 +36,4 @@
     </div>
   </div>
 </div>
+{% endblock %}
