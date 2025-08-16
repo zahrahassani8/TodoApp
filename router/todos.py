@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from database import SessionLocal, engine
 from fastapi import APIRouter, Request, Depends, Form
 from starlette.responses import RedirectResponse
+from .auth import get_current_user
 from starlette import status
+
 import sys
 sys.path.append("..")
 
@@ -30,13 +32,19 @@ def get_db():
 
 @router.get('/', response_class=HTMLResponse)
 async def read_all_by_user(request: Request, db: Session = Depends(get_db)):
-    todos = db.query(models.Todos).filter(models.Todos.owner_id == 1).all()
-    return templates.TemplateResponse("home.html", {'request': request, 'todos': todos})
+    user = await get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
+    todos = db.query(models.Todos).filter(models.Todos.owner_id == user.get('id')).all()
+    return templates.TemplateResponse("home.html", {'request': request, 'todos': todos, 'user': user})
 
 
 
 @router.get('/add-todo', response_class=HTMLResponse)
 async def add_new_todo(request: Request):
+    user = await get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     return templates.TemplateResponse("add_todo.html", {'request': request})
 
 
@@ -47,12 +55,15 @@ async def create_todo(request: Request,
                       description: str = Form(...), 
                       priority: int = Form(...),
                       db: Session = Depends(get_db)):
+    user = await get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo_model = models.Todos()
     todo_model.title = title
     todo_model.description = description
     todo_model.priority = priority
     todo_model.completed = False
-    todo_model.owner_id = 1
+    todo_model.owner_id = user.get('id')
     db.add(todo_model)
     db.commit()
     return RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
@@ -63,6 +74,9 @@ async def create_todo(request: Request,
 async def edit_todo(request: Request, 
                     todo_id: int, 
                     db: Session = Depends(get_db)):
+    user = await get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo = db.query(models.Todos).filter(models.Todos.id == todo_id).first()
     return templates.TemplateResponse("edit_todo.html", {'request': request, 'todo': todo})
 
@@ -75,6 +89,9 @@ async def edit_todo_commit(request: Request,
                            description: str = Form(...), 
                            priority: int = Form(...),
                            db: Session = Depends(get_db)):
+    user = await get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo_model = db.query(models.Todos).filter(models.Todos.id == todo_id).first()
     
     todo_model.title = title
@@ -89,7 +106,10 @@ async def edit_todo_commit(request: Request,
 async def delete_todo(request: Request, 
                       todo_id: int, 
                       db: Session = Depends(get_db)):
-    todo_model = db.query(models.Todos).filter(models.Todos.id == todo_id).first()
+    user = await get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
+    todo_model = db.query(models.Todos).filter(models.Todos.owner_id == user.get('id')).first()
     if todo_model is None:
         return RedirectResponse(url='/todos', status_code=status.HTTP_302_FOUND)
     db.query(models.Todos).filter(models.Todos.id == todo_id).delete()
@@ -102,9 +122,11 @@ async def delete_todo(request: Request,
 async def complete_todo(request: Request, 
                       todo_id: int, 
                       db: Session = Depends(get_db)):
+    user = await get_current_user(request)
+    if user is None:
+        return RedirectResponse(url="/auth", status_code=status.HTTP_302_FOUND)
     todo = db.query(models.Todos).filter(models.Todos.id == todo_id).first()
     todo.completed = not todo.completed
     db.add(todo)
     db.commit()
     return RedirectResponse(url="/todos", status_code=status.HTTP_302_FOUND)
-

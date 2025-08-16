@@ -3,7 +3,10 @@
   <div class="card">
     <div class="card-header">Register</div>
     <div class="card-body">
-      <form id="registerForm">
+      {% if msg %}
+      <div class="alert alert-danger" role="alert"></div>{{ msg }}</div>
+      {% endif %}
+      <form method="POST" action="/auth/register">
         <div class="form-row">
           <div class="form-group col-md-6">
             <label>Email</label>
@@ -64,7 +67,7 @@
       </form>
     </div>
     <div class="card-footer text-muted">
-      <a href="/auth/login-page">Already have an account?</a>
+      <a href="/auth">Already have an account?</a>
     </div>
   </div>
 </div>
